@@ -49,15 +49,19 @@ pub fn run(config: Config) -> MyResult<()> {
                 if multiple_files {
                     println!("==> {} <==", file);
                 }
-                let mut buffer = Vec::new();
-                read.read_to_end(&mut buffer)?;
 
                 if let Some(byte) = config.bytes {
+                    let mut buffer = Vec::new();
+                    read.read_to_end(&mut buffer)?;
                     let buffer = &buffer[..(byte as usize).min(buffer.len())];
                     let text = String::from_utf8_lossy(buffer);
                     print!("{}", text);
                 } else {
-                    print!("{}", String::from_utf8_lossy(&buffer));
+                    for _ in 0..config.lines {
+                        let mut line = String::new();
+                        read.read_line(&mut line)?;
+                        print!("{}", line);
+                    }
                 }
             }
         }
