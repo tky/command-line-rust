@@ -13,28 +13,20 @@ pub struct Config {
     #[arg(
         value_name = "FILE",
         default_value = "-",
-    )]
-    files: Vec<String>,
-    /// Show byte count
-    #[arg(short('c'), long)]
-    bytes: bool,
-    /// Show character count
-    #[arg(short('m'), long)]
-    chars: bool,
-    /// Show line count
-    #[arg(short('l'), long)]
-    lines: bool,
-    /// Show word count
-    #[arg(short('w'), long)]
-    words: bool,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct FileInfo {
-    num_lines: usize,
-    num_words: usize,
-    num_bytes: usize,
-    num_chars: usize,
+        )]
+        files: Vec<String>,
+        /// Show byte count
+        #[arg(short('c'), long)]
+        bytes: bool,
+        /// Show character count
+        #[arg(short('m'), long)]
+        chars: bool,
+        /// Show line count
+        #[arg(short('l'), long)]
+        lines: bool,
+        /// Show word count
+        #[arg(short('w'), long)]
+        words: bool,
 }
 
 impl Config {
@@ -47,6 +39,41 @@ impl Config {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub struct FileInfo {
+    num_lines: usize,
+    num_words: usize,
+    num_bytes: usize,
+    num_chars: usize,
+}
+
+impl FileInfo {
+    fn add(&mut self, other: &FileInfo) {
+        self.num_lines += other.num_lines;
+        self.num_words += other.num_words;
+        self.num_bytes += other.num_bytes;
+        self.num_chars += other.num_chars;
+    }
+}
+
+impl FileInfo {
+    fn print(&self, filename: &str, config: &Config) {
+        if config.lines {
+            print!("{}", format!("{:>8}", self.num_lines));
+        }
+        if config.words {
+            print!("{}", format!("{:>8}", self.num_words));
+        }
+        if config.bytes {
+            print!("{}", format!("{:>8}", self.num_bytes));
+        }
+        if config.chars {
+            print!("{}", format!("{:>8}" , self.num_chars));
+        }
+        println!(" {}", filename);
+    }
+}
+
 pub fn get_args() -> MyResult<Config> {
     let mut config = Config::parse();
     config.finalize();
@@ -54,11 +81,24 @@ pub fn get_args() -> MyResult<Config> {
 }
 
 pub fn run(config: Config) -> MyResult<()> {
+    let mut total_file_info = FileInfo {
+        num_lines: 0,
+        num_words: 0,
+        num_bytes: 0,
+        num_chars: 0,
+    };
     for filename in &config.files {
         match open(filename) {
             Err(err) => eprintln!("{}: {}", filename, err),
-            Ok(_) => println!("{}: OK", filename),
+            Ok(read) => {
+                let info = count(read)?;
+                total_file_info.add(&info);
+                info.print(filename, &config);
+            }
         }
+    }
+    if config.files.len() > 1 {
+        total_file_info.print("total", &config);
     }
     Ok(())
 }
@@ -75,7 +115,7 @@ pub fn count(mut file: impl BufRead) -> MyResult<FileInfo> {
     let mut num_words = 0;
     let mut num_bytes = 0;
     let mut num_chars = 0;
-    
+
     let mut buf = String::new();
 
     while {
@@ -83,7 +123,7 @@ pub fn count(mut file: impl BufRead) -> MyResult<FileInfo> {
         num_bytes += read_bytes;
         read_bytes != 0
     } {
-        num_words = buf.split_whitespace().count();
+        num_words += buf.split_whitespace().count();
         num_chars += buf.chars().count();
         num_lines += 1;
         buf.clear();
