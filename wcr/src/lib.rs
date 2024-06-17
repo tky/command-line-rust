@@ -19,7 +19,7 @@ pub struct Config {
         #[arg(short('c'), long)]
         bytes: bool,
         /// Show character count
-        #[arg(short('m'), long)]
+        #[arg(short('m'), long, conflicts_with("bytes"))]
         chars: bool,
         /// Show line count
         #[arg(short('l'), long)]
