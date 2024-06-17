@@ -70,7 +70,11 @@ impl FileInfo {
         if config.chars {
             print!("{}", format!("{:>8}" , self.num_chars));
         }
-        println!(" {}", filename);
+        if filename != "-" {
+            println!(" {}", filename);
+        } else {
+            println!();
+        }
     }
 }
 
