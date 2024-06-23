@@ -38,12 +38,11 @@ pub fn run(config: Config) -> MyResult<()> {
     match out_file {
         None => 
             func(config, |line| {
-              println!("{}", line);
+              print!("{}", line);
             }),
         Some(filename) => {
             let mut out = File::create(&filename)?;
             func(config, |line| {
-              let line = format!("{}\n", line);
               out.write_all(line.as_bytes()).unwrap();
             })
         }
@@ -66,12 +65,11 @@ where
             break;
         }
 
-        line = line.trim_end().to_string();
         if count == 0 {
             prev = line.clone();
             count = 1;
         } else {
-            if line == prev {
+            if line.trim_end() == prev.trim_end() {
                 count += 1;
             } else {
                 let output = format!("{}{}", if config.count { format!("{:4} ", count) } else { "".to_string() }, prev);
