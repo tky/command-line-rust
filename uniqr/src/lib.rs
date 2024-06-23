@@ -37,13 +37,32 @@ pub fn run(config: Config) -> MyResult<()> {
     let mut file = open(&config.in_file)
         .map_err(|e| format!("{}: {}", config.in_file, e))?;
     let mut line = String::new();
+    let mut prev = String::new();
+    let mut count = 0;
+
     loop {
         let bytes = file.read_line(&mut line)?;
         if bytes == 0 {
             break;
         }
-        print!("{}", line);
+
+        line = line.trim_end().to_string();
+        if count == 0 {
+            prev = line.clone();
+            count = 1;
+        } else {
+            if line == prev {
+                count += 1;
+            } else {
+                println!("{}{}", if config.count { format!("{:4} ", count) } else { "".to_string() }, prev);
+                prev = line.clone();
+                count = 1;
+            }
+        }
         line.clear();
+    }
+    if count > 0 {
+        println!("{}{}", if config.count { format!("{:4} ", count) } else { "".to_string() }, prev);
     }
     Ok(())
 }
