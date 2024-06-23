@@ -1,7 +1,7 @@
 use clap::Parser;
 use std::fs::File;
 use std::error::Error;
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, Write};
 
 type MyResult<T> = Result<T, Box<dyn Error>>;
 
@@ -34,6 +34,26 @@ pub fn get_args() -> MyResult<Config> {
 }
 
 pub fn run(config: Config) -> MyResult<()> {
+    let out_file = &config.out_file;
+    match out_file {
+        None => 
+            func(config, |line| {
+              println!("{}", line);
+            }),
+        Some(filename) => {
+            let mut out = File::create(&filename)?;
+            func(config, |line| {
+              let line = format!("{}\n", line);
+              out.write_all(line.as_bytes()).unwrap();
+            })
+        }
+    }
+}
+
+fn func<F>(config: Config, mut f: F) -> MyResult<()> 
+where
+    F: FnMut(&str),
+{
     let mut file = open(&config.in_file)
         .map_err(|e| format!("{}: {}", config.in_file, e))?;
     let mut line = String::new();
@@ -54,7 +74,8 @@ pub fn run(config: Config) -> MyResult<()> {
             if line == prev {
                 count += 1;
             } else {
-                println!("{}{}", if config.count { format!("{:4} ", count) } else { "".to_string() }, prev);
+                let output = format!("{}{}", if config.count { format!("{:4} ", count) } else { "".to_string() }, prev);
+                f(&output);
                 prev = line.clone();
                 count = 1;
             }
@@ -62,7 +83,8 @@ pub fn run(config: Config) -> MyResult<()> {
         line.clear();
     }
     if count > 0 {
-        println!("{}{}", if config.count { format!("{:4} ", count) } else { "".to_string() }, prev);
+        let output = format!("{}{}", if config.count { format!("{:4} ", count) } else { "".to_string() }, prev);
+        f(&output);
     }
     Ok(())
 }
