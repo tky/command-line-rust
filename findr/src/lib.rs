@@ -70,24 +70,13 @@ pub fn run(config: Config) -> MyResult<()> {
 
 
 fn should_display(entry: &walkdir::DirEntry, names: &Vec<Regex>, entry_types: &Vec<EntryType>) -> bool {
-    if names.len() > 0 {
-        let file_name = entry.file_name().to_string_lossy();
-        let re = names.iter().any(|re| re.is_match(&file_name));
-        if !re {
-            return false
+    (names.is_empty() || names.iter().any(|re| re.is_match(&entry.file_name().to_string_lossy())))
+        &&
+    (entry_types.is_empty() || entry_types.iter().any(|entry_type| {
+        match entry_type {
+            EntryType::Link => entry.file_type().is_symlink(),
+            EntryType::File => entry.file_type().is_file(),
+            EntryType::Dir => entry.file_type().is_dir(),
         }
-    }
-    if entry_types.len() > 0 {
-        if entry.file_type().is_dir() && !entry_types.contains(&EntryType::Dir) {
-            return false
-        }
-        if entry.file_type().is_file() && !entry_types.contains(&EntryType::File) {
-            return false
-        }
-        if entry.file_type().is_symlink() && !entry_types.contains(&EntryType::Link) {
-            return false
-        }
-        
-    }
-    true
+    }))
 }
