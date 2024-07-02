@@ -53,54 +53,16 @@ pub fn get_args() -> MyResult<Config> {
         )));
     };
 
-    match config.extract.bytes {
-        Some(ref bytes) => {
-            let test = bytes.parse::<u8>();
-            match test {
-                Ok(_) => (),
-                Err(_) => {
-                    return Err(From::from(format!(
-                        "illegal list value: \"{}\"",
-                        bytes
-                    )))
-                }
-            }
+    for field in [
+        &config.extract.fields,
+        &config.extract.bytes,
+        &config.extract.chars,
+    ] {
+        match test_arg(field) {
+            Ok(_) => (),
+            Err(e) => return Err(e),
         }
-        None => (),
-    };
-
-    match config.extract.chars {
-        Some(ref chars) => {
-            let test = chars.parse::<u8>();
-            match test {
-                Ok(_) => (),
-                Err(_) => {
-                    return Err(From::from(format!(
-                        "illegal list value: \"{}\"",
-                        chars
-                    )))
-                }
-            }
-        }
-        None => (),
-    };
-
-    match config.extract.fields {
-        Some(ref fields) => {
-            let test = fields.parse::<u8>();
-            match test {
-                Ok(_) => (),
-                Err(_) => {
-                    return Err(From::from(format!(
-                        "illegal list value: \"{}\"",
-                        fields
-                    )))
-                }
-            }
-        }
-        None => (),
-    };
-
+    }
     Ok(config)
 }
 
@@ -108,3 +70,22 @@ pub fn run(config: Config) -> MyResult<()> {
     println!("{:?}", config);
     Ok(())
 }
+
+fn test_arg(arg: &Option<String>) -> MyResult<()> {
+    match arg {
+        Some(ref a) => {
+            let numeric = a.parse::<u8>();
+            match numeric {
+                Ok(_) => Ok(()),
+                Err(_) => {
+                    return Err(From::from(format!(
+                        "illegal list value: \"{}\"",
+                        a
+                    )))
+                }
+            }
+        }
+        None => Ok(()),
+    }
+}
+
