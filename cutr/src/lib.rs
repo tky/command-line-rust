@@ -1,6 +1,8 @@
-use std::{error::Error, ops::Range};
+use anyhow::{anyhow, bail, Result};
+use std::{error::Error, num::NonZeroUsize, ops::Range};
 use clap::Parser;
 use csv::{ReaderBuilder, StringRecord, WriterBuilder};
+use regex::Regex;
 
 type MyResult<T> = Result<T, Box<dyn Error>>;
 type PositionList = Vec<Range<usize>>;
@@ -91,8 +93,48 @@ fn test_arg(arg: &Option<String>) -> MyResult<()> {
 }
 
 
-fn parse_pos(range: String) -> MyResult<PositionList> {
-    unimplemented!();
+fn parse_index(input: &str) -> Result<usize> {
+    let value_error = || anyhow!("illegal list value: \"{}\"", input);
+    if input.starts_with('+') {
+        Err(value_error())
+    } else {
+        input.parse::<NonZeroUsize>()
+            .map(|n| usize::from(n) -1)
+            .map_err(|_| value_error())
+    }
+}
+
+// cargo test unit_tests::test_parse_pos
+fn parse_pos(range: String) -> Result<PositionList> {
+    let range_re = Regex::new(r"^(\d+)-(\d+)$").unwrap();
+    range.split(',').map(|val| {
+        match parse_index(val) {
+            // 数字が一つだけの場合
+            // cut -f 2,3 books.tsv
+            Ok(n) => Ok(n..n + 1),
+            // 数字が-で区切られている場合
+            // cut -c 2-3 books.tsv
+            Err(e) => {
+                range_re.captures(val).ok_or(e).and_then(|captures| {
+                    let n1 = parse_index(&captures[1])?;
+                    let n2 = parse_index(&captures[2])?;
+                    if n1 >= n2 {
+                        bail!(
+                            "First number in range ({}) \
+                            must be lower than second number ({})",
+                            n1 + 1,
+                            n2 + 1
+                        );
+                    }
+                    Ok(n1..n2 + 1)
+                })
+            }
+        }
+    })
+    // Iterator<Item = Result<Range<usize>, anyhow::Error>>
+    // から Result<Vec<Range<usize>>, anyhow::Error> に変換
+    .collect::<Result<_, _>>()
+    .map_err(From::from)
 }
 
 fn extract_bytes(line: &str, byte_pos: &[Range<usize>]) -> String {
