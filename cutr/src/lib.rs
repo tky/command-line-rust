@@ -151,20 +151,26 @@ fn parse_pos(range: String) -> Result<PositionList> {
     .map_err(From::from)
 }
 
+// cargo test unit_tests::test_extract_bytes
 fn extract_bytes(line: &str, byte_pos: &[Range<usize>]) -> String {
-    unimplemented!();
+    let bytes = line.as_bytes();
+    let selected: Vec<_> = byte_pos
+        .iter()
+        .cloned()
+        .flat_map(|range| range.filter_map(|i| bytes.get(i)).copied())
+        .collect();
+    String::from_utf8_lossy(&selected).into_owned()
 }
 
 // cargo test unit_tests::test_extract_chars
 fn extract_chars(line: &str, char_pos: &[Range<usize>]) -> String {
     let line: Vec<char> = line.chars().collect();
-    char_pos.iter().map(|range| {
-        if range.start >= line.len() || range.end > line.len() {
-            "".to_string()
-        } else {
-            line[range.start..range.end].iter().collect::<String>()
-        }
-    }).collect::<String>()
+    let seelcted: Vec<_> = char_pos
+        .iter()
+        .cloned()
+        .flat_map(|range| range.filter_map(|i| line.get(i)).copied())
+        .collect();
+    seelcted.iter().collect()
 }
 
 fn extract_fields<'a>(
