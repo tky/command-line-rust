@@ -155,8 +155,16 @@ fn extract_bytes(line: &str, byte_pos: &[Range<usize>]) -> String {
     unimplemented!();
 }
 
+// cargo test unit_tests::test_extract_chars
 fn extract_chars(line: &str, char_pos: &[Range<usize>]) -> String {
-    unimplemented!();
+    let line: Vec<char> = line.chars().collect();
+    char_pos.iter().map(|range| {
+        if range.start >= line.len() || range.end > line.len() {
+            "".to_string()
+        } else {
+            line[range.start..range.end].iter().collect::<String>()
+        }
+    }).collect::<String>()
 }
 
 fn extract_fields<'a>(
