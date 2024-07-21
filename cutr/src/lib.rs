@@ -72,10 +72,39 @@ pub fn get_args() -> MyResult<Config> {
 }
 
 pub fn run(config: Config) -> MyResult<()> {
+    let extract = if let Some(fields) =
+        config.extract.fields.map(parse_pos).transpose()?
+    {
+        Extract::Fields(fields)
+    } else if let Some(bytes) =
+        config.extract.bytes.map(parse_pos).transpose()?
+    {
+        Extract::Bytes(bytes)
+    } else if let Some(chars) =
+        config.extract.chars.map(parse_pos).transpose()?
+    {
+        Extract::Chars(chars)
+    } else {
+        unreachable!("Must have --fields, --bytes, or --chars");
+    };
+
     for filename in &config.files {
         match open(filename) {
             Err(err) => eprintln!("{}: {}", filename, err),
-            Ok(_) => println!("{}: OK", filename),
+            Ok(file) => match &extract {
+                Extract::Fields(field_pos) => {
+                }
+                Extract::Bytes(byte_pos) => {
+                    for line in file.lines() {
+                        println!("{}", extract_bytes(&line?, byte_pos));
+                    }
+                }
+                Extract::Chars(char_pos) => {
+                    for line in file.lines() {
+                        println!("{}", extract_chars(&line?, char_pos));
+                    }
+                }
+            },
         }
     }
     Ok(())
