@@ -58,20 +58,16 @@ pub fn get_args() -> MyResult<Config> {
         )));
     };
 
-    for field in [
-        &config.extract.fields,
-        &config.extract.bytes,
-        &config.extract.chars,
-    ] {
-        match test_arg(field) {
-            Ok(_) => (),
-            Err(e) => return Err(e),
-        }
-    }
     Ok(config)
 }
 
 pub fn run(config: Config) -> MyResult<()> {
+    let delim_bytes = config.delimiter.as_bytes();
+    if delim_bytes.len() != 1 {
+        return Err(format!(r#"--delim "{}" must be a single byte"#, config.delimiter).into())
+    }
+    let delimiter:u8 = *delim_bytes.first().unwrap();
+
     let extract = if let Some(fields) =
         config.extract.fields.map(parse_pos).transpose()?
     {
@@ -93,6 +89,18 @@ pub fn run(config: Config) -> MyResult<()> {
             Err(err) => eprintln!("{}: {}", filename, err),
             Ok(file) => match &extract {
                 Extract::Fields(field_pos) => {
+                    let mut reader = ReaderBuilder::new()
+                        .delimiter(delimiter)
+                        .has_headers(false)
+                        .from_reader(file);
+                    let mut writer = WriterBuilder::new()
+                        .delimiter(delimiter)
+                        .from_writer(io::stdout());
+                    for record in reader.records() {
+                        let record = record?;
+                        let fields = extract_fields(&record, field_pos);
+                        writer.write_record(&fields)?;
+                    }
                 }
                 Extract::Bytes(byte_pos) => {
                     for line in file.lines() {
@@ -202,11 +210,16 @@ fn extract_chars(line: &str, char_pos: &[Range<usize>]) -> String {
     seelcted.iter().collect()
 }
 
+// cargo test unit_tests::test_extract_fields
 fn extract_fields<'a>(
     record: &'a StringRecord,
     field_pos: &[Range<usize>],
 ) -> Vec<&'a str> {
-    unimplemented!();
+    field_pos
+        .iter()
+        .cloned()
+        .flat_map(|range| range.filter_map(|i| record.get(i)))
+        .collect()
 }
 
 
