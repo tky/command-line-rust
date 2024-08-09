@@ -1,4 +1,7 @@
-use anyhow::Result;
+use std::io;
+use std::io::{BufRead, BufReader};
+use std::fs::File;
+use anyhow::{anyhow, bail, Result};
 use clap::{ArgAction, Parser};
 
 #[derive(Debug, Parser)]
@@ -42,6 +45,25 @@ fn main() {
 }
 
 fn run(args: Args) -> Result<()> {
-    println!("{:?}", args);
+    let file1 = &args.file1;
+    let file2 = &args.file2;
+
+    if file1 == "-" && file2 == "-" {
+        bail!("Both input files cannot be STDIN (\"-\")");
+    }
+
+    let _file1 = open(file1)?;
+    let _file2 = open(file2)?;
+
+    println!("Opened {} and {}", file1, file2);
+
     Ok(())
+}
+
+fn open(filename: &str) -> Result<Box<dyn BufRead>> {
+    match filename {
+        "-" => Ok(Box::new(BufReader::new(io::stdin()))),
+        _ => Ok(Box::new(BufReader::new(
+                File::open(filename).map_err(|e| anyhow!("{}: {}", filename, e))?))),
+    }
 }
