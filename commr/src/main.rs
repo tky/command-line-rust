@@ -2,6 +2,7 @@ use std::io;
 use std::io::{BufRead, BufReader};
 use std::fs::File;
 use anyhow::{anyhow, bail, Result};
+use std::cmp::Ordering;
 use clap::{ArgAction, Parser};
 
 #[derive(Debug, Parser)]
@@ -52,11 +53,47 @@ fn run(args: Args) -> Result<()> {
         bail!("Both input files cannot be STDIN (\"-\")");
     }
 
-    let _file1 = open(file1)?;
-    let _file2 = open(file2)?;
+    match (open(file1), open(file2))  {
+        (Ok(read1), Ok(read2)) => {
+            let mut lines1 = read1.lines().filter_map(|line| line.ok());
+            let mut lines2 = read2.lines().filter_map(|line| line.ok());
+            let mut line1 = lines1.next();
+            let mut line2 = lines2.next();
 
-    println!("Opened {} and {}", file1, file2);
-
+            loop {
+                match (&line1, &line2) {
+                    (None, None) => break,
+                    (Some(l1), None) => {
+                        println!("{}", l1);
+                        line1 = lines1.next();
+                    },
+                    (None, Some(l2)) => {
+                        println!("{}{}", args.delimiter, l2);
+                        line2 = lines2.next();
+                    },
+                    (Some(l1), Some(l2)) => {
+                        match l1.cmp(l2) {
+                            Ordering::Equal => {
+                                println!("{}{}{}", args.delimiter, args.delimiter, l2);
+                                line1 = lines1.next();
+                                line2 = lines2.next();
+                            },
+                            Ordering::Less => {
+                                println!("{}", l1);
+                                line1 = lines1.next();
+                            },
+                            Ordering::Greater => {
+                                println!("{}{}", args.delimiter, l2);
+                                line2 = lines2.next();
+                            },
+                        }
+                    }
+                }
+            }
+        },
+        (Err(e), _) => bail!("{}: {}", file1, e),
+        (_, Err(e)) => bail!("{}: {}", file2, e),
+    }
     Ok(())
 }
 
