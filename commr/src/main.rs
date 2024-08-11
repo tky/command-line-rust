@@ -60,9 +60,8 @@ fn run(args: Args) -> Result<()> {
             let mut line1 = lines1.next();
             let mut line2 = lines2.next();
 
-            loop {
+            while line1.is_some() || line2.is_some() {
                 match (&line1, &line2) {
-                    (None, None) => break,
                     (Some(l1), None) => {
                         println!("{}", l1);
                         line1 = lines1.next();
@@ -88,6 +87,7 @@ fn run(args: Args) -> Result<()> {
                             },
                         }
                     }
+                    _ => (),
                 }
             }
         },
