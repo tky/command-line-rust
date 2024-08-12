@@ -4,6 +4,14 @@ use std::fs::File;
 use anyhow::{anyhow, bail, Result};
 use std::cmp::Ordering;
 use clap::{ArgAction, Parser};
+use crate::Column::*;
+
+
+enum Column<'a> {
+    Col1(&'a str),
+    Col2(&'a str),
+    Col3(&'a str),
+}
 
 #[derive(Debug, Parser)]
 #[command(author, version, about)]
@@ -53,6 +61,40 @@ fn run(args: Args) -> Result<()> {
         bail!("Both input files cannot be STDIN (\"-\")");
     }
 
+    let print = |col: Column| {
+        let mut columns = vec![];
+        match col {
+            Col1(val) => {
+                if args.show_col1 {
+                    columns.push(val);
+                }
+            }
+            Col2(val) => {
+                if args.show_col2 {
+                    if args.show_col1 {
+                        columns.push("");
+                    }
+                    columns.push(val);
+                }
+            }
+            Col3(val) => {
+                if args.show_col3 {
+                    if args.show_col1 {
+                        columns.push("");
+                    }
+                    if args.show_col2 {
+                        columns.push("");
+                    }
+                    columns.push(val);
+                }
+            }
+        }
+
+        if !columns.is_empty() {
+            println!("{}", columns.join(&args.delimiter));
+        }
+    };
+
     match (open(file1), open(file2))  {
         (Ok(read1), Ok(read2)) => {
             let mut lines1 = read1.lines().filter_map(|line| line.ok());
@@ -63,31 +105,33 @@ fn run(args: Args) -> Result<()> {
             while line1.is_some() || line2.is_some() {
                 match (&line1, &line2) {
                     (Some(l1), None) => {
-                        println!("{}", l1);
+                        print(Col1(l1));
                         line1 = lines1.next();
                     },
                     (None, Some(l2)) => {
-                        println!("{}{}", args.delimiter, l2);
+                        print(Col2(l2));
                         line2 = lines2.next();
                     },
                     (Some(l1), Some(l2)) => {
-                        match l1.cmp(l2) {
+                        let l1 = if args.insensitive { l1.to_lowercase() } else { l1.to_string() };
+                        let l2 = if args.insensitive { l2.to_lowercase() } else { l2.to_string() };
+                        match l1.cmp(&l2) {
                             Ordering::Equal => {
-                                println!("{}{}{}", args.delimiter, args.delimiter, l2);
+                                print(Col3(&l1));
                                 line1 = lines1.next();
                                 line2 = lines2.next();
                             },
                             Ordering::Less => {
-                                println!("{}", l1);
+                                print(Col1(&l1));
                                 line1 = lines1.next();
                             },
                             Ordering::Greater => {
-                                println!("{}{}", args.delimiter, l2);
+                                print(Col2(&l2));
                                 line2 = lines2.next();
                             },
                         }
                     }
-                    _ => (),
+                    _ => break,
                 }
             }
         },
