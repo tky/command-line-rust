@@ -4,6 +4,7 @@ use clap::Parser;
 use regex::Regex;
 use once_cell::sync::OnceCell;
 use std::fs::File;
+use std::io::{BufReader, Read};
 
 #[derive(Debug, PartialEq)]
 enum TakeValue {
@@ -80,7 +81,13 @@ fn parse_num(val: String) -> Result<TakeValue> {
 }
 
 fn count_lines_bytes(filename: &str) -> Result<(i64, i64)> {
-    Ok((1, 24))
+    let mut read = BufReader::new(File::open(filename)?);
+    let mut buffer = Vec::new();
+    read.read_to_end(&mut buffer)?;
+
+    let bytes = buffer.len() as i64;
+    let lines = buffer.iter().filter(|&&b| b == b'\n').count() as i64;
+    Ok((lines, bytes))
 }
 
 fn get_start_index(take_val: &TakeValue, total: i64) -> Option<u64> {
