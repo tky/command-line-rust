@@ -1,6 +1,8 @@
 use crate::TakeValue::*;
 use anyhow::{anyhow, bail, Result};
 use clap::Parser;
+use regex::Regex;
+use once_cell::sync::OnceCell;
 
 #[derive(Debug, PartialEq)]
 enum TakeValue {
@@ -41,21 +43,27 @@ fn run(args: Args) -> Result<()> {
     Ok(())
 }
 
+static NUM_RE: OnceCell<Regex> = OnceCell::new();
+
 // cargo test test_parse_num
 fn parse_num(val: String) -> Result<TakeValue> {
-    if val.starts_with('-') {
-        return Ok(TakeNum(val.parse::<i64>()?));
-    }
-    if val.starts_with('+') {
-        let num = val.parse::<i64>()?;
-        if num == 0 {
-            return Ok(PlusZero);
-        } else {
-            return Ok(TakeNum(num));
+    let num_re = NUM_RE.get_or_init(|| Regex::new(r"^([+-])?(\d+)$").unwrap());
+    match num_re.captures(&val) {
+        Some(caps) => {
+            let sign = caps.get(1).map_or("-", |m| m.as_str());
+            let num = format!("{}{}", sign, caps.get(2).unwrap().as_str());
+            if let Ok(val) = num.parse::<i64>() {
+                if sign == "+" && val == 0 {
+                    Ok(PlusZero)
+                } else {
+                    Ok(TakeNum(val))
+                }
+            } else {
+                bail!(val)
+            }
         }
+        _ => bail!(val),
     }
-    let num = val.parse::<i64>().map_err(|_| anyhow!(val))?;
-    Ok(TakeNum(num * -1))
 }
 
 fn count_lines_bytes(filename: &str) -> Result<(i64, i64)> {
