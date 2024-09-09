@@ -3,6 +3,7 @@ use anyhow::{anyhow, bail, Result};
 use clap::Parser;
 use regex::Regex;
 use once_cell::sync::OnceCell;
+use std::fs::File;
 
 #[derive(Debug, PartialEq)]
 enum TakeValue {
@@ -39,7 +40,14 @@ fn main() {
 }
 
 fn run(args: Args) -> Result<()> {
-    println!("{:?}", args);
+    for filename in args.files.iter() {
+        match File::open(filename) {
+            Ok(_) => {
+            },
+            Err(e) => bail!("{}: {}", filename, e),
+        }
+    }
+
     let lines = parse_num(args.lines).map_err(|e| anyhow!("illegal line count -- {}", e))?;
     let bytes = args.bytes
         .map(parse_num)
