@@ -40,6 +40,11 @@ fn main() {
 
 fn run(args: Args) -> Result<()> {
     println!("{:?}", args);
+    let lines = parse_num(args.lines).map_err(|e| anyhow!("illegal line count -- {}", e))?;
+    let bytes = args.bytes
+        .map(parse_num)
+        .transpose()
+        .map_err(|e| anyhow!("illegal byte count -- {}", e))?;
     Ok(())
 }
 
