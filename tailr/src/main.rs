@@ -47,13 +47,25 @@ fn run(args: Args) -> Result<()> {
         .transpose()
         .map_err(|e| anyhow!("illegal byte count -- {}", e))?;
 
-    for filename in args.files.iter() {
+    let num_files = args.files.len();
+    for (file_num, filename) in args.files.iter().enumerate() {
         match File::open(filename) {
             Err(e) => bail!("{}: {}", filename, e),
             Ok(file) => {
+                if !args.quiet && num_files > 1 {
+                    println!(
+                        "{}==> {} <==",
+                        if file_num > 0 { "\n" } else { "" }, filename
+                    ); 
+                }
                 let (total_lines, total_bytes) = count_lines_bytes(filename)?;
                 let file = BufReader::new(file);
-                print_lines(file, &lines, total_lines)?;
+
+                if let Some(num_bytes) = &bytes {
+                    print_bytes(file, &num_bytes, total_bytes)?;
+                } else {
+                    print_lines(file, &lines, total_lines)?;
+                }
             },
         }
     }
@@ -103,7 +115,7 @@ fn get_start_index(take_val: &TakeValue, total: i64) -> Option<u64> {
         } else {
             Some(0)
         },
-        TakeNum(n) if *n < total => Some(n.abs() as u64 - 1),
+        TakeNum(n) if *n <= total => Some(n.abs() as u64 - 1),
         TakeNum(_) => None
     }
 }
@@ -139,12 +151,15 @@ fn print_bytes<T>(
     where
     T: Read + Seek
 {
-    let start = get_start_index(num_bytes, total_bytes).ok_or_else(|| anyhow!("illegal byte count"))?;
-    file.seek(std::io::SeekFrom::Start(start as u64))?;
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer)?;
-    let text = String::from_utf8_lossy(&buffer);
-    print!("{}", text);
+    if let Some(start) = get_start_index(num_bytes, total_bytes) {
+        file.seek(std::io::SeekFrom::Start(start as u64))?;
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)?;
+        if !buffer.is_empty() {
+            let text = String::from_utf8_lossy(&buffer);
+            print!("{}", text);
+        }
+    }
     Ok(())
 }
 
@@ -203,6 +218,8 @@ mod tests {
         // When the starting line/byte is negative and more than the total,
         // return 0 to print the whole file
         assert_eq!(get_start_index(&TakeNum(-20), 10), Some(0));
+
+        assert_eq!(get_start_index(&TakeNum(1), 1), Some(0));
     }
 
     #[test]
