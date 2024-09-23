@@ -4,7 +4,7 @@ use clap::Parser;
 use regex::Regex;
 use once_cell::sync::OnceCell;
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, BufRead,Read, Seek};
 
 #[derive(Debug, PartialEq)]
 enum TakeValue {
@@ -41,19 +41,22 @@ fn main() {
 }
 
 fn run(args: Args) -> Result<()> {
-    for filename in args.files.iter() {
-        match File::open(filename) {
-            Ok(_) => {
-            },
-            Err(e) => bail!("{}: {}", filename, e),
-        }
-    }
-
     let lines = parse_num(args.lines).map_err(|e| anyhow!("illegal line count -- {}", e))?;
     let bytes = args.bytes
         .map(parse_num)
         .transpose()
         .map_err(|e| anyhow!("illegal byte count -- {}", e))?;
+
+    for filename in args.files.iter() {
+        match File::open(filename) {
+            Err(e) => bail!("{}: {}", filename, e),
+            Ok(file) => {
+                let (total_lines, total_bytes) = count_lines_bytes(filename)?;
+                let file = BufReader::new(file);
+                print_lines(file, &lines, total_lines)?;
+            },
+        }
+    }
     Ok(())
 }
 
@@ -91,7 +94,58 @@ fn count_lines_bytes(filename: &str) -> Result<(i64, i64)> {
 }
 
 fn get_start_index(take_val: &TakeValue, total: i64) -> Option<u64> {
-    Some(0)
+    match take_val {
+        PlusZero if total == 0 => None,
+        PlusZero => Some(0),
+        TakeNum(n) if *n == 0 => None,
+        TakeNum(n) if *n < 0 => if total + n > 0 {
+            Some((total + n) as u64)
+        } else {
+            Some(0)
+        },
+        TakeNum(n) if *n < total => Some(n.abs() as u64 - 1),
+        TakeNum(_) => None
+    }
+}
+
+fn print_lines(
+    mut file: impl BufRead,
+    num_lines: &TakeValue,
+    total_lines: i64,
+    ) -> Result<()> {
+    if let Some(start) = get_start_index(num_lines, total_lines) {
+        let mut line_num = 0;
+        let mut buf = Vec::new();
+        loop {
+            let bytes_read = file.read_until(b'\n', &mut buf)?;
+            if bytes_read == 0 {
+                break;
+            }
+            if line_num >= start {
+                print!("{}", String::from_utf8_lossy(&buf));
+            }
+            line_num += 1;
+            buf.clear();
+        }
+    }
+    Ok(())
+}
+
+fn print_bytes<T>(
+    mut file: T,
+    num_bytes: &TakeValue,
+    total_bytes: i64,
+    ) -> Result<()>
+    where
+    T: Read + Seek
+{
+    let start = get_start_index(num_bytes, total_bytes).ok_or_else(|| anyhow!("illegal byte count"))?;
+    file.seek(std::io::SeekFrom::Start(start as u64))?;
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer)?;
+    let text = String::from_utf8_lossy(&buffer);
+    print!("{}", text);
+    Ok(())
 }
 
 #[cfg(test)]
