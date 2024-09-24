@@ -11,7 +11,6 @@ struct Fortune {
     text: String,
 }
 
-
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 /// Rust fortune
@@ -45,6 +44,8 @@ fn run(args: Args) -> Result<()> {
             .build()
             .map_err(|_| anyhow!(r#"Invalid --pattern "{p}""#))
         ).transpose()?;
+    let files = find_files(&args.sources)?;
+    println!("{:?}", files);
     Ok(())
 }
 
