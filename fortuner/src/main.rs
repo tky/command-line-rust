@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::fs;
 use anyhow::{anyhow, bail, Result};
 use walkdir::WalkDir;
+use std::io::{self, BufRead, BufReader};
 
 #[derive(Debug)]
 struct Fortune {
@@ -75,7 +76,33 @@ fn pick_fortune(fortunes: &[Fortune], seed: Option<u64>) -> Option<String> {
 }
 
 fn read_fortunes(paths: &[PathBuf]) -> Result<Vec<Fortune>> {
-    unimplemented!();
+    let mut fortunes = vec![];
+
+    for path in paths {
+        match fs::File::open(path) {
+            Err(e) => bail!("{}", e),
+            Ok(file) => {
+                let mut reader = BufReader::new(file);
+                let mut vec = vec![];
+                while  {
+                    let read_bytes = reader.read_until(b'%', &mut vec)?;
+                    read_bytes != 0
+                } {
+                    let text = String::from_utf8_lossy(&vec).trim().to_string();
+                    println!("========================");
+                    println!("{}", text);
+                    println!("========================");
+                    let fortune = Fortune {
+                        source: path.to_string_lossy().to_string(),
+                        text: String::from_utf8_lossy(&vec).trim().to_string(),
+                    };
+                    fortunes.push(fortune);
+                    vec.clear();
+                }
+            }
+        }
+    }
+    Ok(fortunes)
 }
 
 #[cfg(test)]
