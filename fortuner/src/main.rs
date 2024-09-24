@@ -88,13 +88,13 @@ fn read_fortunes(paths: &[PathBuf]) -> Result<Vec<Fortune>> {
                     let read_bytes = reader.read_until(b'%', &mut vec)?;
                     read_bytes != 0
                 } {
-                    let text = String::from_utf8_lossy(&vec).trim().to_string();
-                    println!("========================");
-                    println!("{}", text);
-                    println!("========================");
+                    let text = String::from_utf8_lossy(&vec[..vec.len()-1]).trim().to_string();
+                    if text.is_empty() || text == "%" {
+                        continue;
+                    }
                     let fortune = Fortune {
                         source: path.to_string_lossy().to_string(),
-                        text: String::from_utf8_lossy(&vec).trim().to_string(),
+                        text,
                     };
                     fortunes.push(fortune);
                     vec.clear();
