@@ -49,19 +49,25 @@ fn run(args: Args) -> Result<()> {
         ).transpose()?;
     let files = find_files(&args.sources)?;
     let fortunes = read_fortunes(&files)?;
-    if fortunes.is_empty() {
-        println!("No fortunes found");
-    } else {
-        match pattern {
-            Some(pattern) => {
-                for fortune in fortunes {
-                    if pattern.is_match(&fortune.text) {
-                        println!("{:#?}", fortune);
-                    }
+    match pattern {
+        Some(pattern) => {
+            let mut prev_source = None;
+            for fortune in fortunes
+                .iter()
+                .filter(|fortune| pattern.is_match(&fortune.text))
+            {
+                if prev_source.as_ref().map_or(true, |s| *s != &fortune.source)
+                {
+                    println!("{}\n%", fortune.text);
+                    prev_source = Some(&fortune.source);
                 }
-            },
-            _ => {
-                println!("{:#?}", pick_fortune(&fortunes, args.seed));
+                println!("{}\n%", fortune.text);
+            }
+        },
+        _ => {
+            match pick_fortune(&fortunes, args.seed) {
+                Some(fortune) => println!("{}", fortune),
+                _ => println!("No fortunes found"),
             }
         }
     }
