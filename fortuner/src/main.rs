@@ -50,7 +50,8 @@ fn run(args: Args) -> Result<()> {
             .map_err(|_| anyhow!(r#"Invalid --pattern "{p}""#))
         ).transpose()?;
     let files = find_files(&args.sources)?;
-    println!("{:?}", files);
+    let fortunes = read_fortunes(&files)?;
+    println!("{:#?}", pick_fortune(&fortunes, args.seed));
     Ok(())
 }
 
