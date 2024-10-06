@@ -58,7 +58,7 @@ fn run(args: Args) -> Result<()> {
             {
                 if prev_source.as_ref().map_or(true, |s| *s != &fortune.source)
                 {
-                    println!("{}\n%", fortune.text);
+                    eprintln!("({})\n%", fortune.source);
                     prev_source = Some(&fortune.source);
                 }
                 println!("{}\n%", fortune.text);
@@ -114,6 +114,7 @@ fn read_fortunes(paths: &[PathBuf]) -> Result<Vec<Fortune>> {
         match fs::File::open(path) {
             Err(e) => bail!("{}", e),
             Ok(file) => {
+                let basename = path.file_name().unwrap().to_string_lossy().into_owned();
                 let mut reader = BufReader::new(file);
                 let mut vec = vec![];
                 while  {
@@ -125,7 +126,7 @@ fn read_fortunes(paths: &[PathBuf]) -> Result<Vec<Fortune>> {
                         continue;
                     }
                     let fortune = Fortune {
-                        source: path.to_string_lossy().to_string(),
+                        source: basename.clone(),
                         text,
                     };
                     fortunes.push(fortune);
