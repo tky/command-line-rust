@@ -5,6 +5,10 @@ use std::fs;
 use anyhow::{anyhow, bail, Result};
 use walkdir::WalkDir;
 use std::io::{self, BufRead, BufReader};
+use rand::seq::SliceRandom;
+use rand::Rng;
+use rand::rngs::{StdRng, ThreadRng};
+use rand::SeedableRng;
 
 #[derive(Debug)]
 struct Fortune {
@@ -72,7 +76,15 @@ fn find_files(paths: &[String]) -> Result<Vec<PathBuf>> {
 }
 
 fn pick_fortune(fortunes: &[Fortune], seed: Option<u64>) -> Option<String> {
-    unimplemented!();
+    let mut rng: Box<dyn rand::RngCore> = match seed {
+        Some(seed) => {
+            Box::new(StdRng::seed_from_u64(seed))
+        }
+        _ => {
+            Box::new(rand::thread_rng())
+        }
+    };
+    fortunes.choose(&mut rng).map(|f| f.text.clone())
 }
 
 fn read_fortunes(paths: &[PathBuf]) -> Result<Vec<Fortune>> {
