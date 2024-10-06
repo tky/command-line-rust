@@ -20,7 +20,7 @@ struct Fortune {
 /// Rust fortune
 struct Args {
     /// Input files or directories
-    #[arg(required = true)]
+    #[arg(required = true, value_name = "FILE")]
     sources: Vec<String>,
     /// Pattern
     #[arg(short('m'), long)]
