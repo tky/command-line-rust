@@ -4,10 +4,9 @@ use std::path::PathBuf;
 use std::fs;
 use anyhow::{anyhow, bail, Result};
 use walkdir::WalkDir;
-use std::io::{self, BufRead, BufReader};
+use std::io::{BufRead, BufReader};
 use rand::seq::SliceRandom;
-use rand::Rng;
-use rand::rngs::{StdRng, ThreadRng};
+use rand::rngs::StdRng;
 use rand::SeedableRng;
 
 #[derive(Debug)]
@@ -42,7 +41,6 @@ fn main() {
 }
 
 fn run(args: Args) -> Result<()> {
-    println!("{:?}", args);
     let pattern = args.pattern
         .map(|p| RegexBuilder::new(&p)
             .case_insensitive(args.insensitive)
@@ -51,7 +49,22 @@ fn run(args: Args) -> Result<()> {
         ).transpose()?;
     let files = find_files(&args.sources)?;
     let fortunes = read_fortunes(&files)?;
-    println!("{:#?}", pick_fortune(&fortunes, args.seed));
+    if fortunes.is_empty() {
+        println!("No fortunes found");
+    } else {
+        match pattern {
+            Some(pattern) => {
+                for fortune in fortunes {
+                    if pattern.is_match(&fortune.text) {
+                        println!("{:#?}", fortune);
+                    }
+                }
+            },
+            _ => {
+                println!("{:#?}", pick_fortune(&fortunes, args.seed));
+            }
+        }
+    }
     Ok(())
 }
 
@@ -60,7 +73,7 @@ fn find_files(paths: &[String]) -> Result<Vec<PathBuf>> {
 
     for path in paths {
         match fs::metadata(path) {
-            Err(e) => bail!("{}", e),
+            Err(e) => bail!("{path}: {e}"),
             Ok(_) => {files.extend(
                 WalkDir::new(path)
                 .into_iter()
