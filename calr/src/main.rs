@@ -1,6 +1,7 @@
 use clap::Parser;
 use anyhow::{anyhow, Result};
-use chrono::{Days, Local, Months, NaiveDate};
+use chrono::{Datelike, Local, NaiveDate};
+use ansi_term::Style;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -34,6 +35,8 @@ const MONTH_NAMES: [&str; 12] = [
     "December",
 ];
 
+const LINE_WIDTH: usize = 22;
+
 fn main() {
     if let Err(e) = run(Args::parse()) {
         eprintln!("{e}");
@@ -53,7 +56,45 @@ fn format_month(
     print_year: bool,
     today: NaiveDate,
 ) -> Vec<String> {
-    unimplemented!()
+    let month_name = MONTH_NAMES[month as usize - 1];
+    let header = if print_year {
+        format!("{} {}", month_name, year)
+    } else {
+        format!("{}", month_name)
+    };
+
+    let header_label = format!("{:^20}  ", header);
+
+    let mut lines = vec![header_label, "Su Mo Tu We Th Fr Sa  ".to_string()];
+
+    let first_day = NaiveDate::from_ymd(year, month, 1);
+
+    let first_padding = first_day.weekday().num_days_from_sunday();
+    let last_day = last_day_in_month(year, month);
+
+    let mut days = vec![];
+    days.extend((0..first_padding).map(|_| "  ".to_string()));
+
+    let is_today = |day: u32| day == today.day() && month == today.month() as u32;
+
+    days.extend((1..last_day.day() + 1).map(|day| {
+        let fmt = format!("{:2}", day);
+        if is_today(day) {
+            Style::new().reverse().paint(fmt).to_string()
+        } else {
+            fmt
+        }}));
+
+    days.chunks(7).for_each(|week| {
+        let line = week.join(" ") + "  ";
+        lines.push(format!("{:width$}", line, width = LINE_WIDTH));
+    });
+
+    if lines.len() < 8 {
+        lines.push(" ".repeat(LINE_WIDTH));
+    }
+
+    lines
 }
 
 fn last_day_in_month(year: i32, month: u32) -> NaiveDate {
