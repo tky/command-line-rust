@@ -1,6 +1,6 @@
 use clap::Parser;
 use anyhow::{anyhow, Result};
-use chrono::{Local, NaiveDate};
+use chrono::{Days, Local, Months, NaiveDate};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -57,7 +57,9 @@ fn format_month(
 }
 
 fn last_day_in_month(year: i32, month: u32) -> NaiveDate {
-    unimplemented!()
+    NaiveDate::from_ymd_opt(year, month + 1, 1)
+        .unwrap_or_else(|| NaiveDate::from_ymd(year + 1, 1, 1))
+        .pred()
 }
 
 fn parse_month(month: String) -> Result<u32> {
