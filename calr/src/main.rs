@@ -18,10 +18,9 @@ struct Args {
     /// Show the whole current year
     #[arg(
         short('y'),
-        default_value("true"),
         long("year"),
         conflicts_with_all(["month", "year"]))]
-    show_current_year: bool,
+        show_current_year: bool,
 }
 
 const MONTH_NAMES: [&str; 12] = [
@@ -49,12 +48,49 @@ fn main() {
 }
 
 fn run(args: Args) -> Result<()> {
-    let month = args.month.map(|m| m.parse::<u32>()).transpose()?.unwrap_or_else(|| Local::today().month());
-    let year = args.year.unwrap_or_else(|| Local::today().year());
+    let (year, month) = if args.show_current_year {
+        (Local::today().year(), None)
+    } else {
+        if args.year.is_none() && args.month.is_none() {
+            (Local::today().year(), Some(Local::today().month()))
+        } else {
+           (args.year.unwrap_or_else(|| Local::today().year()),
+            args.month.map(|m| parse_month(m)).transpose()?)
+        }
+    };
     let today = Local::today().naive_local();
-    let calendars = format_month(year, month, args.show_current_year, today);
-    calendars.iter().for_each(|line| println!("{}", line));
-    Ok(())
+
+    match month {
+        Some(m) => {
+            let calendar = format_month(year, m, true, today);
+            calendar.iter().for_each(|line| println!("{}", line));
+            Ok(())
+        }
+        _ => {
+            println!("{year:>32}");
+            let calendars = ([
+                [1,2,3],
+                [4,5,6],
+                [7,8,9],
+                [10,11,12]]
+            ).map(|ms| {
+                let h = format_month(year, ms[0], false, today).iter().zip(
+                    format_month(year, ms[1], args.show_current_year, today).iter())
+                    .map(|(l1, l2)| format!("{}{}", l1, l2))
+                    .collect::<Vec<String>>();
+                h.iter().zip(format_month(year, ms[2], false, today).iter())
+                    .map(|(l1, l2)| format!("{}{}", l1, l2))
+                    .collect::<Vec<String>>()
+            });
+            calendars.iter().enumerate().for_each(|(i, cal)| {
+                cal.iter().for_each(|line| println!("{}", line));
+                if i != calendars.len() - 1 {
+                    println!();
+                }
+            });
+            Ok(())
+        }
+    }
 }
 
 fn format_month(
@@ -62,7 +98,7 @@ fn format_month(
     month: u32,
     print_year: bool,
     today: NaiveDate,
-) -> Vec<String> {
+    ) -> Vec<String> {
     let month_name = MONTH_NAMES[month as usize - 1];
     let header = if print_year {
         format!("{} {}", month_name, year)
@@ -82,7 +118,7 @@ fn format_month(
     let mut days = vec![];
     days.extend((0..first_padding).map(|_| "  ".to_string()));
 
-    let is_today = |day: u32| day == today.day() && month == today.month() as u32;
+    let is_today = |day: u32| year == today.year() && day == today.day() && month == today.month() as u32;
 
     days.extend((1..last_day.day() + 1).map(|day| {
         let fmt = format!("{:2}", day);
