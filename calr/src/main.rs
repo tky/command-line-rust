@@ -16,7 +16,11 @@ struct Args {
     month: Option<String>,
 
     /// Show the whole current year
-    #[arg(short('y'), long("year"), conflicts_with_all(["month", "year"]))]
+    #[arg(
+        short('y'),
+        default_value("true"),
+        long("year"),
+        conflicts_with_all(["month", "year"]))]
     show_current_year: bool,
 }
 
@@ -45,8 +49,11 @@ fn main() {
 }
 
 fn run(args: Args) -> Result<()> {
-    let month = args.month.map(parse_month).transpose()?;
-    let _today = Local::today();
+    let month = args.month.map(|m| m.parse::<u32>()).transpose()?.unwrap_or_else(|| Local::today().month());
+    let year = args.year.unwrap_or_else(|| Local::today().year());
+    let today = Local::today().naive_local();
+    let calendars = format_month(year, month, args.show_current_year, today);
+    calendars.iter().for_each(|line| println!("{}", line));
     Ok(())
 }
 
