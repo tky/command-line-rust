@@ -2,6 +2,7 @@ use clap::Parser;
 use anyhow::{anyhow, Result};
 use chrono::{Datelike, Local, NaiveDate};
 use ansi_term::Style;
+use itertools::izip;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -68,26 +69,20 @@ fn run(args: Args) -> Result<()> {
         }
         _ => {
             println!("{year:>32}");
-            let calendars = ([
-                [1,2,3],
-                [4,5,6],
-                [7,8,9],
-                [10,11,12]]
-            ).map(|ms| {
-                let h = format_month(year, ms[0], false, today).iter().zip(
-                    format_month(year, ms[1], args.show_current_year, today).iter())
-                    .map(|(l1, l2)| format!("{}{}", l1, l2))
-                    .collect::<Vec<String>>();
-                h.iter().zip(format_month(year, ms[2], false, today).iter())
-                    .map(|(l1, l2)| format!("{}{}", l1, l2))
-                    .collect::<Vec<String>>()
-            });
-            calendars.iter().enumerate().for_each(|(i, cal)| {
-                cal.iter().for_each(|line| println!("{}", line));
-                if i != calendars.len() - 1 {
-                    println!();
+            let months: Vec<_> = (1..=12)
+                .into_iter()
+                .map(|month| format_month(year, month, false, today)).collect();
+
+            for (i, chunk) in months.chunks(3).enumerate() {
+                if let [m1, m2, m3] = chunk {
+                    for lines in izip!(m1, m2, m3) {
+                        println!("{}{}{}", lines.0, lines.1, lines.2);
+                    }
+                    if i < 3 {
+                        println!();
+                    }
                 }
-            });
+            }
             Ok(())
         }
     }
