@@ -4,6 +4,10 @@ use clap::Parser;
 use anyhow::{anyhow, Result};
 use std::path::PathBuf;
 use std::fs::{ self, metadata};
+use std::os::unix::fs::MetadataExt;
+use tabular::{Row, Table};
+use users::{get_user_by_uid, get_group_by_gid};
+use chrono::{DateTime, Utc};
 use owner::Owner;
 
 
@@ -68,11 +72,37 @@ fn find_files(
 }
 
 fn format_mode(mode: u32) -> String {
-    unimplemented!()
+    let user = mode >> 6;
+    let group = (mode & 0b000111000) >> 3;
+    let other = (mode & 0b000000111);
+    fn _format_mode(m: u32) -> String {
+        let r = if m & 0b0100 > 0 {"r"} else {"-"};
+        let w = if m & 0b0010 > 0 {"w"} else {"-"};
+        let e = if m & 0b0001 > 0 {"x"} else {"-"};
+        format!("{}{}{}", r, w, e)
+    }
+    format!("{}{}{}", _format_mode(user), _format_mode(group), _format_mode(other))
 }
 
 fn format_output(paths: &[PathBuf]) -> Result<String> {
-    unimplemented!()
+    let fmt = "{:<}{:<} {:>} {:<} {:<} {:>} {:<} {:<}";
+    let mut table = Table::new(fmt);
+    for path in paths {
+        let meta = metadata(path)?;
+        let modified_time: DateTime<Utc> = meta.modified().unwrap().into();
+        table.add_row(
+            Row::new()
+            .with_cell(if meta.is_dir()  {"d"} else {"-"}) // 1 "d"または"-"
+            .with_cell(format_mode(meta.mode())) // 2 パーミッション
+            .with_cell(meta.nlink()) // 3 リンク数
+            .with_cell(get_user_by_uid(meta.uid()).unwrap().name().to_str().unwrap()) // 4 ユーザー名
+            .with_cell(get_group_by_gid(meta.gid()).unwrap().name().to_str().unwrap()) // 5 グループ名
+            .with_cell(meta.len()) // 6 サイズ
+            .with_cell(modified_time.format("%Y-%m-%d %H:%M:%S")) // 7 更新日時
+            .with_cell(path.display()) // 8 パス
+        );
+    }
+    Ok(format!("{}", table))
 }
 
 fn mk_triple(mode: u32, owner: Owner) -> String {
