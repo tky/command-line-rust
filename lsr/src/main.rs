@@ -52,6 +52,7 @@ fn format_output(paths: &[PathBuf]) -> Result<String> {
 }
 
 fn mk_triple(mode: u32, owner: Owner) -> String {
+    unimplemented!()
 }
 
 // --------------------------------------------------
