@@ -3,6 +3,7 @@ mod owner;
 use clap::Parser;
 use anyhow::{anyhow, Result};
 use std::path::PathBuf;
+use std::fs::{ self, metadata};
 use owner::Owner;
 
 
@@ -32,7 +33,10 @@ fn main() {
 }
 
 fn run(args: Args) -> Result<()> {
-    println!("{:?}", args);
+    let paths = find_files(&args.paths, args.show_hidden)?;
+    for path in paths {
+        println!("{}", path.display());
+    }
     Ok(())
 }
 
@@ -40,7 +44,27 @@ fn find_files(
     paths: &[String],
     show_hidden: bool,
     ) -> Result<Vec<PathBuf>> {
-    unimplemented!()
+    let mut entries = vec![];
+    paths.iter().for_each(|path| {
+        match metadata(path) {
+            Ok(metadata) => {
+                if metadata.is_file() {
+                    entries.push(PathBuf::from(path));
+                } else if metadata.is_dir() {
+                    fs::read_dir(path).unwrap().for_each(|entry| {
+                        let path = entry.unwrap().path();
+                        if show_hidden || !path.file_name().unwrap().to_str().unwrap().starts_with(".") {
+                            entries.push(path);
+                        }
+                    });
+                } else {
+                    println!("{}: not a file or directory", path);
+                }
+            },
+            _ => eprintln!("{}: No such file or directory", path),
+        }
+    });
+    Ok(entries)
 }
 
 fn format_mode(mode: u32) -> String {
@@ -76,10 +100,10 @@ mod test {
         assert_eq!(
             filenames,
             [
-                "tests/inputs/bustle.txt",
-                "tests/inputs/dir",
-                "tests/inputs/empty.txt",
-                "tests/inputs/fox.txt",
+            "tests/inputs/bustle.txt",
+            "tests/inputs/dir",
+            "tests/inputs/empty.txt",
+            "tests/inputs/fox.txt",
             ]
         );
 
@@ -96,11 +120,11 @@ mod test {
         // Test multiple path arguments
         let res = find_files(
             &[
-                "tests/inputs/bustle.txt".to_string(),
-                "tests/inputs/dir".to_string(),
+            "tests/inputs/bustle.txt".to_string(),
+            "tests/inputs/dir".to_string(),
             ],
             false,
-        );
+            );
         assert!(res.is_ok());
         let mut filenames: Vec<_> = res
             .unwrap()
@@ -128,11 +152,11 @@ mod test {
         assert_eq!(
             filenames,
             [
-                "tests/inputs/.hidden",
-                "tests/inputs/bustle.txt",
-                "tests/inputs/dir",
-                "tests/inputs/empty.txt",
-                "tests/inputs/fox.txt",
+            "tests/inputs/.hidden",
+            "tests/inputs/bustle.txt",
+            "tests/inputs/dir",
+            "tests/inputs/empty.txt",
+            "tests/inputs/fox.txt",
             ]
         );
     }
@@ -142,7 +166,7 @@ mod test {
         expected_name: &str,
         expected_perms: &str,
         expected_size: Option<&str>,
-    ) {
+        ) {
         let parts: Vec<_> = line.split_whitespace().collect();
         assert!(!parts.is_empty() && parts.len() <= 10);
 
@@ -195,7 +219,7 @@ mod test {
             "tests/inputs/empty.txt",
             "-rw-r--r--",
             Some("0"),
-        );
+            );
 
         let dir_line = lines.remove(0);
         long_match(dir_line, "tests/inputs/dir", "drwxr-xr-x", None);
