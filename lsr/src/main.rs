@@ -38,8 +38,12 @@ fn main() {
 
 fn run(args: Args) -> Result<()> {
     let paths = find_files(&args.paths, args.show_hidden)?;
-    for path in paths {
-        println!("{}", path.display());
+    if args.long {
+        println!("{}", format_output(&paths)?);
+    } else {
+        for path in paths {
+            println!("{}", path.display());
+        }
     }
     Ok(())
 }
