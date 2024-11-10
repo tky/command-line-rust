@@ -72,16 +72,10 @@ fn find_files(
 }
 
 fn format_mode(mode: u32) -> String {
-    let user = mode >> 6;
-    let group = (mode & 0b000111000) >> 3;
-    let other = (mode & 0b000000111);
-    fn _format_mode(m: u32) -> String {
-        let r = if m & 0b0100 > 0 {"r"} else {"-"};
-        let w = if m & 0b0010 > 0 {"w"} else {"-"};
-        let e = if m & 0b0001 > 0 {"x"} else {"-"};
-        format!("{}{}{}", r, w, e)
-    }
-    format!("{}{}{}", _format_mode(user), _format_mode(group), _format_mode(other))
+    format!("{}{}{}",
+            mk_triple(mode, Owner::User)
+            , mk_triple(mode, Owner::Group)
+            , mk_triple(mode, Owner::Other))
 }
 
 fn format_output(paths: &[PathBuf]) -> Result<String> {
@@ -106,7 +100,13 @@ fn format_output(paths: &[PathBuf]) -> Result<String> {
 }
 
 fn mk_triple(mode: u32, owner: Owner) -> String {
-    unimplemented!()
+    let [read, write, execute] = owner.masks();
+        format!(
+            "{}{}{}",
+            if mode & read == 0 { "-" } else { "r"},
+            if mode & write == 0 { "-" } else { "w" },
+            if mode &execute == 0 { "-" } else { "x" }
+        )
 }
 
 // --------------------------------------------------
