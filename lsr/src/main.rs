@@ -66,10 +66,10 @@ fn find_files(
                         }
                     });
                 } else {
-                    println!("{}: not a file or directory", path);
+                    eprintln!("{}: No such file or directory (os error 2)", path);
                 }
             },
-            _ => eprintln!("{}: No such file or directory", path),
+            _ => eprintln!("{}: No such file or directory (os error 2)", path),
         }
     });
     Ok(entries)
